@@ -108,7 +108,7 @@ def voro_tessellate(atm):
     ase_axis_align_cell(atm)
     a, b, c = atm.get_cell()
     basis = (a[0], b[0], b[1], c[0], c[1], c[2])
-    res = voro.tessellate(basis, atm.get_scaled_positions())
+    res = vorosym.tessellate(basis, atm.get_scaled_positions())
     voro_cells = []
     for at in res:
         aidx, xyz, offset, volume, vert_coords, faces = at
