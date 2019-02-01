@@ -556,6 +556,7 @@ static void axis_align_mirror2d(
         // Mirror the vertices in the x axis
         apply_transforms(rotated_verts, mirrored_verts, dmat1, LEN(dmat1), true);
         new_area = get_convex_area2d(&mirrored_verts[0], mirrored_verts.size()/2);
+        area_ratio = orig_area/new_area;
         if (area_ratio > best_area_ratio)
         {
             bestR[0] = R[0];
