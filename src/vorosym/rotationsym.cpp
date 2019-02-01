@@ -610,7 +610,7 @@ static bool axis_align_pai2d(
         printf("inertia %g, %g\n%g, %g\n", inertia[0], inertia[1], inertia[2], inertia[3]);
     }
 
-    if (AlmostEqualRelative(eigval[0], eigval[1], 1e-2))
+    if (AlmostEqualRelative(eigval[0], eigval[1], 0.1))
     {
         return true;
     }
