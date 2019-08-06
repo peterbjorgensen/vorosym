@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <stack>
-#include <tgmath.h>
 #include <limits>
 #include "rotationsym.h"
 
@@ -11,6 +10,7 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/ch_graham_andrew.h>
 #include <CGAL/Polygon_2.h>
+
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 typedef CGAL::Polygon_2<K> Polygon_2;
 typedef K::Point_2 Point_2;
@@ -124,6 +124,12 @@ static double vec2dotp(
 {
     return veca[0]*vecb[0]+veca[1]*vecb[1];
 }
+static double vec2crossp(
+    const double veca[2],
+    const double vecb[2])
+{
+    return veca[0]*vecb[1]-veca[1]*vecb[0];
+}
 
 //https://math.stackexchange.com/questions/432057/how-can-i-calculate-a-4-times-4-rotation-matrix-to-match-a-4d-direction-vector/433611#433611
 static void reflection3d(
@@ -152,33 +158,6 @@ static void reflection3d(
     double c = -2.0/nTn;
 
     for (i=0; i<9; i++)
-    {
-        out[i] = A[i] + rhs[i]*c;
-    }
-
-    return;
-}
-
-static void reflection2d(
-    const double A[4],
-    const double n[2],
-    double out[4])
-{
-    double nTA[2];
-    double rhs[4];
-    int i;
-    double nTn = n[0]*n[0]+n[1]*n[1];
-    nTA[0] = n[0]*A[0] + n[1]*A[2];
-    nTA[1] = n[0]*A[1] + n[1]*A[3];
-
-    rhs[0] = n[0]*nTA[0];
-    rhs[1] = n[0]*nTA[1];
-    rhs[2] = n[1]*nTA[0];
-    rhs[3] = n[1]*nTA[1];
-
-    double c = -2.0/nTn;
-
-    for (i=0; i<4; i++)
     {
         out[i] = A[i] + rhs[i]*c;
     }
@@ -245,32 +224,24 @@ static void get_rotation3d(
 }
 
 /* Get rotation matrix that moves the vector "from" into "to"
- * where "from" and "to" must be unit vectors */
+ * where "from" and "to" must be unit vectors
+ *
+ * We use that R = [cos phi, -sin phi];
+ *                 [sin phi, cos phi]
+ *
+ */
 static void get_rotation2d(
     const double from[2],
     const double to[2],
     double out[4])
 {
-    const double eye[4] = {1,0, 0,1};
-    double S[4];
-    double fpt[2];
-    if (fabs(-1-vec2dotp(from, to)) < EPSILON)
-    {
-        // From and to are parallel but opposite
-        // Rotation matrix flips all axes
-        out[0] = -1;
-        out[1] = 0;
-        out[2] = 0;
-        out[3] = -1;
-    }
-    else
-    {
-        fpt[0] = from[0]+to[0];
-        fpt[1] = from[1]+to[1];
-        reflection2d(eye, fpt, S);
-        reflection2d(S, to, out);
-    }
-    return;
+    double cos = vec2dotp(from, to);
+    double sin = vec2crossp(from, to);
+
+    out[0] = cos;
+    out[1] = -sin;
+    out[2] = sin;
+    out[3] = cos;
 }
 
 static void axis_align_3to2(
@@ -346,10 +317,9 @@ static void get_inertia(
 {
     unsigned int i;
     double x0, x1, y0, y1, a;
-    double Ix, Ixy, Iyx, Iy;
+    double Ix, Ixy, Iy;
     Ix = 0;
     Ixy = 0;
-    Iyx = 0;
     Iy = 0;
     for (i=0; i<verts.size()/2; i++)
     {
@@ -361,12 +331,17 @@ static void get_inertia(
         Ix += (y0*y0+y0*y1+y1*y1)*a;
         Iy += (x0*x0+x0*x1+x1*x1)*a;
         Ixy += (x0*y1+2*x0*y0+2*x1*y1+x1*y0)*a;
-        Iyx += (y0*x1+2*y0*x0+2*y1*x1+y1*x0)*a;
     }
-    inertia[0] = fabs(Ix/12.);
-    inertia[1] = fabs(Ixy/24.);
-    inertia[2] = fabs(Iyx/24.);
-    inertia[3] = fabs(Iy/12.);
+    /* The result is put into the matrix:
+     * |Iy  Ixy|
+     * |Ixy Ixx|
+     * Because this is the matrix we need to find
+     * the eigenvectors of.
+     * */
+    inertia[0] = (Iy/12.);
+    inertia[1] = (Ixy/24.);
+    inertia[2] = (Ixy/24.);
+    inertia[3] = (Ix/12.);
 }
 
 //http://www.math.harvard.edu/archive/21b_fall_04/exhibits/2dmatrices/
@@ -616,7 +591,7 @@ static bool axis_align_pai2d(
         return true;
     }
 
-    if (eigval[0] > eigval[1])
+    if (fabs(eigval[0]) > fabs(eigval[1]))
     {
         refvec[0] = eigvec[0];
         refvec[1] = eigvec[2];
@@ -826,71 +801,13 @@ int main(int argc, char **argv)
     unsigned int i, j;
     std::vector<double> vertices3d;
     double symmetry_measures[NUM_ROTATION_SYMMETRIES];
-    //const double normal[3] = {0,  0, 1};
-    //const double test_verts[] = {
-    //-2, -2, 1,
-    //-1.0, 2.0, 1,
-    //4.0, 2, 1,
-    //3, -2, 1,
-    //};
-#if 1
-    //const double test_verts[] =
-    //{
-        //0.28054782, 0.16196131, 0.178509,
-        //1.727357  , 2.667963  , 0.178509,
-        //3.17417372, 0.16195695, 0.178509,
-    //};
-    //const double test_verts[] =
-    //{
-        //0.44388013,  0.03554383, -2.165855,
-        //-0.03554583,  0.44388009, -2.165855,
-        //-0.44388154, -0.03554578, -2.165855,
-         //0.03554378, -0.44388158, -2.165855,
-    //};
-    const double test_verts[] =
-    {
-    -0.81792205,  1.52876621,  1.865395,
-    -0.56659765,  1.65128095,  1.865395,
-     1.52876745,  0.81791629,  1.865395,
-     1.65127999,  0.56659524,  1.865395,
-     0.81791704, -1.52876555,  1.865395,
-     0.56658968, -1.65128129,  1.865395,
-    -1.52876431, -0.8179228 ,  1.865395,
-    -1.65128225, -0.56659209,  1.865395,
+    const double test_verts[] = {
+      1.366,  0.789, -1.116,
+      1.366, -0.789, -0.558,
+      1.366, -0.789,  1.116,
+      1.366,  0.789,  0.558,
     };
-
-    //const double test_verts[] =
-    //{
-        //-1.2, 0, 0.178509,
-        //-0.2  , -1  , 0.178509,
-        //0.8, 0, 0.178509,
-    //};
-    //const double test_verts[] =
-    //{
-    //-1, 0, 0.178509,
-    //0  , 1  , 0.178509,
-    //1, 0, 0.178509,
-    //};
-    //const double test_verts[] =
-    //{
-    //3.17417372+0.16195695,-3.17417372+0.16195695, 0.178509,
-    //1.727357  +2.667963  ,-1.727357  +2.667963  , 0.178509,
-    //0.28054782+0.16196131,-0.28054782+0.16196131, 0.178509,
-    //};
-    //const double normal[3] = {-7.67355677e-17,  1.32907463e-16, -1.00000000e+00};
-    //const double normal[3] = {1.29213073e-15,  2.60464402e-15, -1.00000000e+00};
-    const double normal[3] = {-5.12763349e-11, -5.12758926e-11,  1.00000000e+00};
-
-#else
-
-    const double test_verts[] =
-    {
-    -1, -1, 0.178509,
-    0  , 1  , 0.178509,
-    1, -1, 0.178509,
-    };
-    const double normal[3] = {-7.67355677e-17,  1.32907463e-16, -1.00000000e+00};
-#endif
+    const double normal[3] = {1.0,   0., 0.};
 
     for (i=0; i<LEN(test_verts); i++)
     {
