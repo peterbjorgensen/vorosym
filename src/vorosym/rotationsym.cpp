@@ -30,8 +30,7 @@ static double get_convex_area2d(const double points[], int num_points);
 static double get_signed_area2d(const std::vector<double> &verts);
 static void axis_align_mirror2d(std::vector<double> &verts);
 
-static const double matrot90[1][4]
-{
+static const double matrot90[1][4] = {
     {0, -1, 1, 0}
 };
 
@@ -717,7 +716,7 @@ static double get_convex_area2d(const double points[], int num_points)
     int i;
     for(i=0; i<num_points; i++)
     {
-        inp.push_back({points[i*2], points[i*2+1]});
+        inp.push_back(Point_2(points[i*2], points[i*2+1]));
     }
     CGAL::ch_graham_andrew( inp.begin(), inp.end(), std::back_inserter(hull));
     double area = CGAL::polygon_area_2(hull.begin(), hull.end(), K());
