@@ -2,7 +2,7 @@ import sys
 sys.path.append("../vorosym/") # TODO delete
 import ase
 import numpy as np
-from voronoi import voro_tessellate
+from vorosym import voro_tessellate
 import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -91,14 +91,6 @@ def plot_individual_faces(atoms, atomnumber=0, threshold=0.2):
         ax.set_ylim([np.min(aligned[:,1]),np.max(aligned[:,1])])
         ax.set_aspect('equal','box')
         ax.set_axis_off()
-        if fa.symmetries[1] > 0.99 and fa.symmetries[4] < 0.99:
-            print(atoms, atomnumber, fa)
-            print(aligned)
-            print(fa.vertices)
-            print(fa.normal)
-            return True
-        else:
-            plt.close(fig)
 
 def rotation_matrix(a,b):
     if abs(-1 - a.dot(b) ) < 1e-7:
@@ -123,9 +115,9 @@ if __name__ == "__main__":
     import sys
     from ase.build import bulk
     from mpl_toolkits.mplot3d import Axes3D
-    #atoms = bulk('Si')
-    #atoms.set_chemical_symbols(['Si', 'F'])
-    #atoms = atoms.repeat(3)
+    atoms = bulk('Si')
+    atoms.set_chemical_symbols(['Si', 'F'])
+    atoms = atoms.repeat(3)
     from mpl_toolkits.mplot3d import proj3d
     def orthogonal_proj(zfront, zback):
         a = (zfront+zback)/(zfront-zback)
@@ -135,28 +127,9 @@ if __name__ == "__main__":
                             [0,0,a,b],
                             [0,0,-0.0001,zback]])
     proj3d.persp_transformation = orthogonal_proj
-    with ase.db.connect("/home/peter/phd/inka/oqmd/oqmd-all.db") as db:
-    #with ase.db.connect("/home/peter/phd/inka/dtu_physics_data/ABSe3_All.db") as db:
-        for row in db.select("id=46"):
-            #if row.id in [7024]:
-                #continue
-            print(row.id)
-            #atoms_to_graph_voronoi(row.toatoms(), lambda x:x, min_solid_angle=0.2)
-            atoms = row.toatoms()
 
-            atomnumber = 6
-            print(atomnumber)
-            if plot_individual_faces(atoms, atomnumber=atomnumber):
-                plt.show()
-            #plot_faces(atoms, atomnumber=atomnumber)
-        #atoms = next(db.select(int(sys.argv[1]))).toatoms()
-        #atoms = atoms.repeat(2)
-
-    print(atoms)
-    #atomnumber = 0
-    #plot_individual_faces(atoms, atomnumber=atomnumber)
-    #plot_faces(atoms, atomnumber=atomnumber)
-    plt.show()
+    atomnumber=6
+    plot_individual_faces(atoms, atomnumber=atomnumber)
     nodes, edges, connections = atoms_to_graph_voronoi(atoms, lambda x: x, min_solid_angle=0.2)
 
     N = len(nodes)
